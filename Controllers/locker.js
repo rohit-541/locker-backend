@@ -189,6 +189,7 @@ const LockerController = {
                     isActive: true,
                     createdAt: true,
                     updatedAt: true,
+                    userId: true
                 }
             }
             );
@@ -239,7 +240,7 @@ const LockerController = {
             }
             const updatedLocker = await db.locker.update({
                 where: { id: lockerId },
-                data: { userId, status: "NONE" }
+                data: { userId, status: "CLOSED" }
             });
             return res.status(200).json({ message: "Locker bought successfully" });
         } catch (error) {

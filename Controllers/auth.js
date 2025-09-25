@@ -35,6 +35,7 @@ const AuthController = {
             const dbOTP = await db.otp.findUnique({
                 where: { email }
             });
+            console.log(req.body)
         
             if(!dbOTP){
                 return res.status(400).json({ message: "Invalid OTP" });
