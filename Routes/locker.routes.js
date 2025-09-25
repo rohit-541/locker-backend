@@ -13,5 +13,6 @@ lockerRouter.post("/close", authMiddleware,lockerMiddleWare, LockerController.cl
 lockerRouter.post("/verify-otp", authMiddleware, LockerController.verifyLockerOTP);
 lockerRouter.post("/send-otp", authMiddleware, LockerController.sendLockerOTP);
 lockerRouter.get("/get-by-locker-id", authMiddleware, LockerController.getLocker);
+lockerRouter.post("/empty", authMiddleware, lockerMiddleWare, LockerController.emptyLocker);
 
 export default lockerRouter;

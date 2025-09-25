@@ -5,33 +5,33 @@ import jwt from "jsonwebtoken";
 
 const LockerController = {
     sendLockerOTP: async (req, res) => {
-        const {lockerId} = req.body;
-        const {userId} = req;
+        const { lockerId } = req.body;
+        const { userId } = req;
         try {
             const locker = await db.locker.findUnique({
                 where: { id: lockerId }
             });
-            if(!locker){
+            if (!locker) {
                 return res.status(400).json({ message: "Locker not found" });
             }
-            if(!locker.userId || locker.userId !== userId){
+            if (!locker.userId || locker.userId !== userId) {
                 return res.status(400).json({ message: "This Locker is not assigned to you" });
             }
 
             const otp = `${Math.floor(100000 + Math.random() * 900000)}`;
-            const encryptedOtp = await bcrypt.hash(otp,10);
+            const encryptedOtp = await bcrypt.hash(otp, 10);
             const validTill = new Date(Date.now() + 120 * 1000);
             const user = await db.user.findUnique({
                 where: { id: userId }
             });
-            if(!user){
+            if (!user) {
                 return res.status(400).json({ message: "User not found" });
             }
-            const email = user.email;   
+            const email = user.email;
             const otpObject = await db.lockerOTP.upsert({
                 where: { userId },
                 update: { otp: encryptedOtp, validTill },
-                create: { lockerId, otp: encryptedOtp, validTill,userId }
+                create: { lockerId, otp: encryptedOtp, validTill, userId }
             });
 
             await sendEmail(email, "Locker OTP", `Your locker ${locker.name} OTP is ${otp}`);
@@ -44,29 +44,29 @@ const LockerController = {
 
     //To verify locker OTP
     verifyLockerOTP: async (req, res) => {
-        const {userId} = req;
-        const {lockerId,otp} = req.body;
+        const { userId } = req;
+        const { lockerId, otp } = req.body;
         try {
             const locker = await db.locker.findUnique({
                 where: { id: lockerId }
             });
-            if(!locker){
+            if (!locker) {
                 return res.status(400).json({ message: "Locker not found" });
             }
-            if(!locker.userId || locker.userId !== userId){
+            if (!locker.userId || locker.userId !== userId) {
                 return res.status(400).json({ message: "This Locker is not assigned to you" });
             }
             const lockerOTP = await db.lockerOTP.findUnique({
                 where: { userId }
             });
-            if(!lockerOTP){
+            if (!lockerOTP) {
                 return res.status(400).json({ message: "Locker OTP not found" });
             }
             const result = await bcrypt.compare(otp, lockerOTP.otp);
-            if(!result){
+            if (!result) {
                 return res.status(400).json({ message: "Invalid OTP" });
             }
-            if(lockerOTP.validTill < new Date()){
+            if (lockerOTP.validTill < new Date()) {
                 return res.status(400).json({ message: "OTP expired" });
             }
             const lockerToken = jwt.sign({ lockerId, userId }, process.env.JWT_SECRET, { expiresIn: "1h" });
@@ -81,15 +81,15 @@ const LockerController = {
 
     //To Open a locker
     openLocker: async (req, res) => {
-        const {lockerId,userId} = req;
+        const { lockerId, userId } = req;
         try {
             const locker = await db.locker.findUnique({
-                where: { id: lockerId}
+                where: { id: lockerId }
             });
-            if(!locker){
+            if (!locker) {
                 return res.status(400).json({ message: "Locker not found" });
             }
-            if(!locker.userId || locker.userId !== userId){
+            if (!locker.userId || locker.userId !== userId) {
                 return res.status(400).json({ message: "This Locker is not assigned to you" });
             }
 
@@ -100,7 +100,7 @@ const LockerController = {
             const user = await db.user.findUnique({
                 where: { id: userId }
             });
-            if(!user){
+            if (!user) {
                 return res.status(400).json({ message: "User not found" });
             }
             const email = user.email;
@@ -115,15 +115,15 @@ const LockerController = {
 
     //To Close a locker
     closeLocker: async (req, res) => {
-        const {lockerId,userId} = req;
+        const { lockerId, userId } = req;
         try {
             const locker = await db.locker.findUnique({
                 where: { id: lockerId }
             });
-            if(!locker){
+            if (!locker) {
                 return res.status(400).json({ message: "Locker not found" });
             }
-            if(!locker.userId || locker.userId !== userId){
+            if (!locker.userId || locker.userId !== userId) {
                 return res.status(400).json({ message: "This Locker is not assigned to you" });
             }
             const updatedLocker = await db.locker.update({
@@ -133,7 +133,7 @@ const LockerController = {
             const user = await db.user.findUnique({
                 where: { id: userId }
             });
-            if(!user){
+            if (!user) {
                 return res.status(400).json({ message: "User not found" });
             }
             const email = user.email;
@@ -147,6 +147,39 @@ const LockerController = {
             return res.status(500).json({ message: "Internal server error" });
         }
     },
+    emptyLocker: async (req, res) => {
+        const { lockerId, userId } = req;
+        try {
+            const locker = await db.locker.findUnique({
+                where: { id: lockerId }
+            });
+            if (!locker) {
+                return res.status(400).json({ message: "Locker not found" });
+            }
+            if (!locker.userId || locker.userId !== userId) {
+                return res.status(400).json({ message: "This Locker is not assigned to you" });
+            }
+            const updatedLocker = await db.locker.update({
+                where: { id: lockerId },
+                data: { status: "NONE", userId:null }
+            });
+            const user = await db.user.findUnique({
+                where: { id: userId }
+            });
+            if (!user) {
+                return res.status(400).json({ message: "User not found" });
+            }
+            const email = user.email;
+
+            //Logic to close mechanical lock
+
+            await sendEmail(email, "Locker Closed", `Your locker ${locker.name} has been emptied`);
+            return res.status(200).json({ message: "Locker emptied successfully" });
+        } catch (error) {
+            console.log(error);
+            return res.status(500).json({ message: "Internal server error" });
+        }
+    },
 
     //To get content of the locker by lockerId
     getLocker: async (req, res) => {
@@ -155,18 +188,18 @@ const LockerController = {
             const locker = await db.locker.findUnique({
                 where: { id: lockerId }
             });
-            if(!locker){
+            if (!locker) {
                 return res.status(400).json({ message: "Locker not found" });
             }
-            if(!locker.userId || locker.userId !== req.userId){
+            if (!locker.userId || locker.userId !== req.userId) {
                 return res.status(400).json({ message: "This Locker is not assigned to you" });
             }
 
-            if(locker.status !== "OPEN"){
+            if (locker.status !== "OPEN") {
                 return res.status(400).json({ message: "Locker is not open" });
             }
 
-            return res.status(200).json({ message: "Locker found",locker });
+            return res.status(200).json({ message: "Locker found", locker });
         } catch (error) {
             console.log(error);
             return res.status(500).json({ message: "Internal server error" });
@@ -177,23 +210,20 @@ const LockerController = {
     getAllLockers: async (req, res) => {
         try {
             const lockers = await db.locker.findMany(
-            {          
-                where: {
-                    status: "NONE"
-                },
-                select: {
-                    id: true,
-                    name: true,
-                    prices: true,
-                    status: true,
-                    isActive: true,
-                    createdAt: true,
-                    updatedAt: true,
-                    userId: true
+                {
+                    select: {
+                        id: true,
+                        name: true,
+                        prices: true,
+                        status: true,
+                        isActive: true,
+                        createdAt: true,
+                        updatedAt: true,
+                        userId: true
+                    }
                 }
-            }
             );
-            return res.status(200).json({ message: "Lockers found",lockers });
+            return res.status(200).json({ message: "Lockers found", lockers });
         } catch (error) {
             console.log(error);
             return res.status(500).json({ message: "Internal server error" });
@@ -207,7 +237,7 @@ const LockerController = {
             console.log(userId);
             const lockers = await db.locker.findMany({
                 where: { userId },
-                select:{
+                select: {
                     id: true,
                     name: true,
                     prices: true,
@@ -217,7 +247,7 @@ const LockerController = {
                     updatedAt: true,
                 }
             });
-            return res.status(200).json({ message: "Lockers found",lockers }); 
+            return res.status(200).json({ message: "Lockers found", lockers });
         } catch (error) {
             console.log(error);
             return res.status(500).json({ message: "Internal server error" });
@@ -226,16 +256,16 @@ const LockerController = {
 
     //Buy Locker
     buyLocker: async (req, res) => {
-        const {userId} = req;
-        const {lockerId} = req.body;
+        const { userId } = req;
+        const { lockerId } = req.body;
         try {
             const locker = await db.locker.findUnique({
                 where: { id: lockerId }
             });
-            if(!locker){
+            if (!locker) {
                 return res.status(400).json({ message: "Locker not found" });
             }
-            if(locker.userId || locker.status !== "NONE"){
+            if (locker.userId || locker.status !== "NONE") {
                 return res.status(400).json({ message: "This Locker is already assigned to someone or is not available" });
             }
             const updatedLocker = await db.locker.update({
