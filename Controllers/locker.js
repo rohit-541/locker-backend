@@ -2,6 +2,11 @@ import bcrypt from "bcrypt";
 import db from "../Utils/db.js";
 import { sendEmail } from "../Utils/mail.js";
 import jwt from "jsonwebtoken";
+import { SerialPort } from 'serialport';
+const port = new SerialPort({
+    path: 'COM5', // or '/dev/ttyUSB0' depending on your platform
+    baudRate: 9600,
+});
 
 const LockerController = {
     sendLockerOTP: async (req, res) => {
@@ -97,6 +102,23 @@ const LockerController = {
                 where: { id: lockerId },
                 data: { status: "OPEN" }
             });
+            port.on('open', () => console.log('Serial port opened'));
+
+            // Listen for data from Arduino
+            port.on('data', (data) => {
+                console.log('Arduino says:', data.toString().trim());
+            });
+
+            // Send command
+            port.write('open\n', (err) => {
+                if (err) {
+                    console.error('Error writing to port:', err.message);
+                } else {
+                    console.log('Command sent to Arduino');
+                }
+            });
+
+
             const user = await db.user.findUnique({
                 where: { id: userId }
             });
@@ -130,6 +152,8 @@ const LockerController = {
                 where: { id: lockerId },
                 data: { status: "CLOSED" }
             });
+            port.write(`closed\n`);
+
             const user = await db.user.findUnique({
                 where: { id: userId }
             });
@@ -161,7 +185,7 @@ const LockerController = {
             }
             const updatedLocker = await db.locker.update({
                 where: { id: lockerId },
-                data: { status: "NONE", userId:null }
+                data: { status: "NONE", userId: null }
             });
             const user = await db.user.findUnique({
                 where: { id: userId }
