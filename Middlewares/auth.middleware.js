@@ -16,6 +16,7 @@ export const authMiddleware = async (req, res, next) => {
     if(!dbUser){
         return res.status(401).json({ message: "Unauthorized" });
     }
+    console.log(decoded);
     req.email = decoded.email;
     req.userId = decoded.userId;
     next();

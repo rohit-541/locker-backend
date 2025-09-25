@@ -100,7 +100,7 @@ const AuthController = {
             if(!result){
                 return res.status(400).json({ message: "Invalid password" });
             }
-            const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "1h" });
+            const token = jwt.sign({ email ,userId:user.id}, process.env.JWT_SECRET, { expiresIn: "1h" });
 
             res.cookie("access_token", token, { httpOnly: true, secure: process.env.NODE_ENV === "production", maxAge: 3600000 });
 
